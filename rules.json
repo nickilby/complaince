@@ -9,7 +9,7 @@
     },
     {
         "roles": ["CMS", "SQL"],
-        "alias_shared_host": false
+        "alias_shared_host": true
     },
     {
         "role": "CACHE",
