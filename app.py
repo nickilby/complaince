@@ -99,6 +99,11 @@ if st.button("Refresh Data"):
 
         # Compliance Check
         violations = check_compliance(st.session_state.df, rules)
+        
+        # Display the number of violations
+        num_violations = len(violations)
+        st.subheader(f"Number of Violations: {num_violations}")
+        
         if violations:
             st.error("Compliance Violations Found!")
             st.write(violations)
