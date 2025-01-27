@@ -9,7 +9,7 @@ from collections import defaultdict
 PROMETHEUS_URL = "https://prometheus.zengenti.io/"
 prom = PrometheusConnect(url=PROMETHEUS_URL, disable_ssl=True)
 
-# Query for the VM power state
+# Query for the VM power state as this returns all the facts we need
 QUERY = 'vmware_vm_power_state == 1'
 
 # Function to extract alias and role from VM name
