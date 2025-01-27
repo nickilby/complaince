@@ -1,0 +1,3 @@
+prometheus-api-client 
+mysql-connector-python 
+pandas

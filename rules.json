@@ -1,0 +1,18 @@
+[
+    {
+        "role": "WEB",
+        "alias_shared_host": false
+    },
+    {
+        "role": "LB",
+        "alias_shared_host": false
+    },
+    {
+        "roles": ["CMS", "SQL"],
+        "alias_shared_host": false
+    },
+    {
+        "role": "CACHE",
+        "alias_shared_host": false
+    }
+]
