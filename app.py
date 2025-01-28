@@ -81,7 +81,7 @@ def check_compliance(vm_data, rules):
     return violations
 
 # Streamlit UI
-st.title("VMware VM Power State Query")
+st.title("VMware VM Compliance")
 
 # Check if the data already exists in session state, otherwise load it
 if 'df' not in st.session_state:
