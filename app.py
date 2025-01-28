@@ -9,7 +9,7 @@ from collections import defaultdict
 PROMETHEUS_URL = "https://prometheus.zengenti.io/"
 prom = PrometheusConnect(url=PROMETHEUS_URL, disable_ssl=True)
 
-# Query for the VM power state as this returns all the facts we need
+# Query for the VM power state
 QUERY = 'vmware_vm_power_state == 1'
 
 # Function to extract alias and role from VM name
@@ -45,9 +45,11 @@ def load_rules(file_path):
         st.error(f"Error loading rules file: {e}")
         return []
 
-# Function to check for compliance violations (generic rule application)
+# Function to check for compliance violations
 def check_compliance(vm_data, rules):
     vm_host_mapping = defaultdict(lambda: defaultdict(list))
+
+    # Organize VM data by alias and role
     for _, row in vm_data.iterrows():
         alias, role = row['alias'], row['role']
         if alias and role:
@@ -57,28 +59,29 @@ def check_compliance(vm_data, rules):
 
     # Iterate through the rules and check for violations
     for alias, roles in vm_host_mapping.items():
-        for rule in rules:
-            # Check if the rule applies to multiple roles (like CMS and SQL sharing the same host)
-            if "roles" in rule:
-                roles_in_rule = rule["roles"]
-                if all(role in roles for role in roles_in_rule):  # All roles must exist for this check
-                    # Check that all the VMs for these roles are on the same host
-                    hosts = set()
-                    for role in roles_in_rule:
-                        hosts.update(roles.get(role, []))
-                    if len(hosts) != 1:
-                        violation = f"Violation: VMs of roles {roles_in_rule} in alias '{alias}' should be on the same ESXi host."
-                        violations.append(violation)
+        for role, hosts in roles.items():
+            for rule in rules:
+                # Check role-specific shared host rules
+                if rule.get("role") == role and rule.get("alias_shared_host") is False:
+                    if len(hosts) != len(set(hosts)):  # Duplicate hosts mean a violation
+                        violations.append({"alias": alias, "violation": f"Role '{role}' VMs should not share the same host."})
 
-            # Check other individual roles for the shared host rule
-            for role, hosts in roles.items():
-                for rule in rules:
-                    if rule.get("role") == role and rule.get("alias_shared_host") is False:
-                        if len(hosts) != len(set(hosts)):
-                            violation = f"Violation: VMs of '{alias}' and role '{role}' should not be on the same ESXi host."
-                            violations.append(violation)
-
-    return violations
+                # Check multi-role rules (e.g., CMS + SQL)
+                if "roles" in rule:
+                    roles_in_rule = rule["roles"]
+                    if all(r in roles for r in roles_in_rule):  # All roles exist
+                        combined_hosts = set()
+                        for r in roles_in_rule:
+                            combined_hosts.update(roles[r])
+                        if len(combined_hosts) > 1:  # Roles span multiple hosts
+                            violations.append({"alias": alias, "violation": f"Roles {roles_in_rule} must be on the same host."})
+    
+    # Group and deduplicate violations by alias
+    grouped_violations = defaultdict(set)
+    for violation in violations:
+        grouped_violations[violation["alias"]].add(violation["violation"])
+    
+    return grouped_violations
 
 # Streamlit UI
 st.title("VMware VM Compliance")
@@ -98,39 +101,29 @@ if st.button("Refresh Data"):
         rules = load_rules("rules.json")  # Adjust the file path to your actual rules file
 
         # Compliance Check
-        violations = check_compliance(st.session_state.df, rules)
+        grouped_violations = check_compliance(st.session_state.df, rules)
 
         # Store violations in session state
-        st.session_state.violations = violations
+        st.session_state.violations = grouped_violations
 
         # Display the number of violations
-        num_violations = len(violations)
+        num_violations = sum(len(v) for v in grouped_violations.values())
         st.subheader(f"Number of Violations: {num_violations}")
 
-        if violations:
+        if grouped_violations:
             st.error("Compliance Violations Found!")
 
-            # Group violations by alias
-            violations_by_alias = defaultdict(list)
-            for violation in violations:
-                # Extract the alias from the violation message
-                alias_match = re.search(r"alias '([^']+)'", violation)
-                if alias_match:
-                    alias = alias_match.group(1)
-                    violations_by_alias[alias].append(violation)
-
-            # Display the violations under each alias without expanders
-            for alias, violations_in_alias in violations_by_alias.items():
+            # Display the violations grouped by alias
+            for alias, violations in grouped_violations.items():
                 st.write(f"Violations: {alias}")
-                for violation in violations_in_alias:
-                    st.write(violation)
-
+                for violation in sorted(violations):
+                    st.write(f"  - {violation}")
         else:
             st.success("All VMs are compliant!")
     else:
         st.warning("No data found from Prometheus.")
 
-# Search bar to filter by alias (separate from the refresh button logic)
+# Search bar to filter by alias or role
 search_alias = st.text_input("Search by Alias", "")
 search_role = st.text_input("Search by Role", "")
 if search_alias:
@@ -140,20 +133,12 @@ elif search_role:
 else:
     filtered_df = st.session_state.df
 
-# Highlighting violations in the data
-def highlight_violations(row):
-    if 'violations' in st.session_state:
-        violations = st.session_state.violations
-        if row['alias'] in [violation.split()[3] for violation in violations]:
-            return ['background-color: red'] * len(row)
-    return [''] * len(row)
-
-# Display the filtered data as a table, including the alias and role columns for human readability
+# Display the filtered data
 st.subheader("VM Power State Data")
-st.dataframe(filtered_df.style.apply(highlight_violations, axis=1))
+st.dataframe(filtered_df)
 
-# Visualization of Violations (Bar chart of violation count by alias)
+# Visualization of Violations
 if 'violations' in st.session_state:
-    violation_count_by_alias = pd.Series([violation.split()[3] for violation in st.session_state.violations]).value_counts()
-    if violation_count_by_alias.any():
+    violation_count_by_alias = pd.Series({alias: len(violations) for alias, violations in st.session_state.violations.items()})
+    if not violation_count_by_alias.empty:
         st.bar_chart(violation_count_by_alias)
