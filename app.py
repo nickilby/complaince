@@ -14,7 +14,7 @@ QUERY = 'vmware_vm_power_state == 1'
 
 # Function to extract alias and role from VM name
 def extract_alias_role(vm_name):
-    match = re.match(r"z-(\d+-\d+)-([A-Za-z]+)\d*", vm_name)
+    match = re.match(r"z-([a-zA-Z0-9-]+)-([A-Za-z]+)\d*", vm_name)
     if match:
         alias = match.group(1)
         role = match.group(2)
@@ -99,9 +99,32 @@ if st.button("Refresh Data"):
 
         # Compliance Check
         violations = check_compliance(st.session_state.df, rules)
+
+        # Store violations in session state
+        st.session_state.violations = violations
+
+        # Display the number of violations
+        num_violations = len(violations)
+        st.subheader(f"Number of Violations: {num_violations}")
+
         if violations:
             st.error("Compliance Violations Found!")
-            st.write(violations)
+
+            # Group violations by alias
+            violations_by_alias = defaultdict(list)
+            for violation in violations:
+                # Extract the alias from the violation message
+                alias_match = re.search(r"alias '([^']+)'", violation)
+                if alias_match:
+                    alias = alias_match.group(1)
+                    violations_by_alias[alias].append(violation)
+
+            # Display the violations under each alias without expanders
+            for alias, violations_in_alias in violations_by_alias.items():
+                st.write(f"Violations: {alias}")
+                for violation in violations_in_alias:
+                    st.write(violation)
+
         else:
             st.success("All VMs are compliant!")
     else:
@@ -109,11 +132,28 @@ if st.button("Refresh Data"):
 
 # Search bar to filter by alias (separate from the refresh button logic)
 search_alias = st.text_input("Search by Alias", "")
+search_role = st.text_input("Search by Role", "")
 if search_alias:
     filtered_df = st.session_state.df[st.session_state.df['alias'].str.contains(search_alias, case=False, na=False)]
+elif search_role:
+    filtered_df = st.session_state.df[st.session_state.df['role'].str.contains(search_role, case=False, na=False)]
 else:
     filtered_df = st.session_state.df
 
+# Highlighting violations in the data
+def highlight_violations(row):
+    if 'violations' in st.session_state:
+        violations = st.session_state.violations
+        if row['alias'] in [violation.split()[3] for violation in violations]:
+            return ['background-color: red'] * len(row)
+    return [''] * len(row)
+
 # Display the filtered data as a table, including the alias and role columns for human readability
 st.subheader("VM Power State Data")
-st.dataframe(filtered_df)
+st.dataframe(filtered_df.style.apply(highlight_violations, axis=1))
+
+# Visualization of Violations (Bar chart of violation count by alias)
+if 'violations' in st.session_state:
+    violation_count_by_alias = pd.Series([violation.split()[3] for violation in st.session_state.violations]).value_counts()
+    if violation_count_by_alias.any():
+        st.bar_chart(violation_count_by_alias)
