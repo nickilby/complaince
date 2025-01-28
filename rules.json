@@ -12,6 +12,22 @@
         "alias_shared_host": true
     },
     {
+        "role": "v14",
+        "alias_shared_host": false
+    },
+    {
+        "role": "etcd",
+        "alias_shared_host": false
+    },
+    {
+        "role": "controller",
+        "alias_shared_host": false
+    },
+    {
+        "role": "ingress",
+        "alias_shared_host": false
+    },
+    {
         "role": "CACHE",
         "alias_shared_host": false
     }

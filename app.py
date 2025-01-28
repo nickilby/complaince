@@ -27,7 +27,7 @@ def query_prometheus():
     if results:
         df = pd.json_normalize(results)
         df['alias'], df['role'] = zip(*df['metric.vm_name'].apply(extract_alias_role))
-        df = df.drop(columns=['metric.__name__', 'metric.instance', 'metric.dc_name', 'metric.environment'], errors='ignore')
+        df = df.drop(columns=['metric.__name__', 'metric.instance', 'metric.dc_name', 'metric.environment', 'metric.job'], errors='ignore')
         if 'value' in df.columns:
             df['value'] = pd.to_numeric(df['value'], errors='coerce')
         return df
