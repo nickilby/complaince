@@ -1,33 +1,49 @@
 [
     {
+        "name": "Anti-Affinity-Web",
+        "description": "Keep Web servers apart on different hypervisors",
         "role": "WEB",
         "alias_shared_host": false
     },
     {
+        "name": "Anti-Affinity-LB",
+        "description": "Keep Load Balancers apart on different hypervisors",
         "role": "LB",
         "alias_shared_host": false
     },
     {
+        "name": "Affinity-SQL-CMS",
+        "description": "Keep SQL and CMS servers together",
         "roles": ["CMS", "SQL"],
         "alias_shared_host": true
     },
     {
+        "name": "Anti-Affinity-Elastic",
+        "description": "Keep Elastic servers apart on different hypervisors",
         "role": "v14",
         "alias_shared_host": false
     },
     {
+        "name": "Anti-Affinity-etcd",
+        "description": "Keep etcd servers apart on different hypervisors",
         "role": "etcd",
         "alias_shared_host": false
     },
     {
+        "name": "Anti-Affinity-K8s-Controllers",
+        "description": "Keep K8s Controllers apart on different hypervisors",
         "role": "controller",
         "alias_shared_host": false
     },
     {
+        "name": "Anti-Affinity-Ingress",
+        "description": "Keep Ingress LB servers apart on different hypervisors",
         "role": "ingress",
         "alias_shared_host": false
     },
     {
+        "name": "Anti-Affinity-Cache",
+        "description": "Keep Cache servers apart on different hypervisors",
         "role": "CACHE",
         "alias_shared_host": false
     }
